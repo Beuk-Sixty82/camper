@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Camper</title>
+<meta name="description" content="Camperplekken in heel Europa en een dashboard voor je ritten.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Camper">
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111614" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="vendor/MarkerCluster.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-tab="places">
+
+<div id="map"></div>
+
+<div class="top">
+  <form id="search" class="search" role="search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    <input id="q" type="search" placeholder="Zoek plaats of regio" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Zoek plaats of regio">
+  </form>
+  <div id="results" class="results card" hidden></div>
+  <div id="chips" class="chips"></div>
+</div>
+
+<button id="status" class="status" type="button" hidden></button>
+
+<div class="fabs">
+  <button id="btn-locate" class="fab" type="button" aria-label="Mijn locatie">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" class="fill"/></svg>
+  </button>
+</div>
+
+<section id="hud" class="hud card" aria-label="Rit"></section>
+<section id="sheet" class="sheet card" hidden></section>
+<section id="panel-trips" class="panel" aria-label="Ritten"></section>
+<section id="panel-saved" class="panel" aria-label="Bewaard"></section>
+
+<div id="install" class="install card" hidden>
+  <p><b>Zet Camper op je beginscherm</b><br>Tik in Safari op <span class="kbd">Deel</span> en kies <span class="kbd">Zet op beginscherm</span>.</p>
+  <button type="button" id="install-close" aria-label="Sluiten">×</button>
+</div>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+<nav class="tabs" aria-label="Hoofdmenu">
+  <button type="button" data-tab="places" class="on">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+    Plekken
+  </button>
+  <button type="button" data-tab="drive">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19.5 20 12 16.5 4.5 20z"/></svg>
+    Rit
+  </button>
+  <button type="button" data-tab="trips">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18.5" r="2.2"/><circle cx="18" cy="5.5" r="2.2"/><path d="M8.2 18.5H15a3.2 3.2 0 0 0 0-6.4H9a3.2 3.2 0 0 1 0-6.4h6.8"/></svg>
+    Ritten
+  </button>
+  <button type="button" data-tab="saved">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>
+    Bewaard
+  </button>
+</nav>
+
+<script src="vendor/leaflet.js"></script>
+<script src="vendor/leaflet.markercluster.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "camper-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node serve.js",
+    "data": "node tools/build-data.mjs"
+  }
+}
