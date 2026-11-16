@@ -28,6 +28,11 @@ const GLYPH = {
   custom: '<svg viewBox="0 0 24 24"><path d="m12 2.8 2.8 5.8 6.4.9-4.6 4.5 1.1 6.3-5.7-3-5.7 3 1.1-6.3-4.6-4.5 6.4-.9z"/></svg>',
 };
 const catOf = p => (CATS[p.cat] ? p.cat : 'custom');
+export const pinHtml = p => `<span class="pin pin-${catOf(p)}">${GLYPH[catOf(p)]}</span>`;
+export const catLabel = p => {
+  const a = p.tags?.amenity;
+  return a === 'water_point' ? 'Watertappunt' : a === 'sanitary_dump_station' ? 'Loosplaats' : CATS[catOf(p)];
+};
 
 const places = new Map();   // id → plek
 const markers = new Map();  // id → Leaflet-marker
@@ -273,7 +278,7 @@ function infoRows(p) {
 
 export function showPlace(p) {
   const cat = catOf(p), t = p.tags || {};
-  const kind = t.amenity === 'water_point' ? 'Watertappunt' : t.amenity === 'sanitary_dump_station' ? 'Loosplaats' : CATS[cat];
+  const kind = catLabel(p);
   const dist = me.pos ? `${fmtDist(haversine(me.pos, [p.lat, p.lon]))} hiervandaan` : '';
   const sub = [kind, !t['addr:street'] && t['addr:city'], dist].filter(Boolean).join(' · ');
   const tags = facts(p), rows = infoRows(p);
@@ -346,6 +351,25 @@ export function showPlace(p) {
 
   const sheet = openSheet(node);
   map.panInside([p.lat, p.lon], { paddingTopLeft: [40, 150], paddingBottomRight: [40, sheet.offsetHeight + 40] });
+}
+
+// ---------- Zoeken in geladen en bewaarde plekken ----------
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+/** Plekken waarvan de naam of plaats de zoektekst bevat, dichtstbijzijnde (t.o.v. de kaart) eerst. */
+export function findPlaces(q, limit = 5) {
+  const s = norm(q).trim();
+  if (s.length < 2) return [];
+  const c = map.getCenter(), ref = [c.lat, c.lng];
+  const hits = [], seen = new Set();
+  for (const p of [...favs.values(), ...places.values()]) {
+    if (seen.has(p.id)) continue;
+    if (norm(p.name).includes(s) || norm(p.tags?.['addr:city']).includes(s)) {
+      seen.add(p.id);
+      hits.push({ p, d: haversine(ref, [p.lat, p.lon]) - (favs.has(p.id) ? 1e7 : 0) });
+    }
+  }
+  return hits.sort((a, b) => a.d - b.d).slice(0, limit).map(x => x.p);
 }
 
 // ---------- Bewaarde plekken ----------

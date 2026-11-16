@@ -2,8 +2,9 @@ import { map, locate } from './map.js';
 import { initPlaces } from './places.js';
 import { initTracker, trackerActive, recenter } from './tracker.js';
 import { initTrips } from './trips.js';
+import { initSearch } from './search.js';
 import { setTab, closeSheet, currentTab } from './ui.js';
-import { $, $$, esc } from './util.js';
+import { $, $$ } from './util.js';
 
 // ---------- Startscherm ----------
 const splash = $('#splash');
@@ -29,41 +30,8 @@ $('#btn-locate').addEventListener('click', () => {
   else locate(true);
 });
 
-// ---------- Zoeken op plaatsnaam (heel Europa) ----------
-const results = $('#results');
-$('#search').addEventListener('submit', async e => {
-  e.preventDefault();
-  const q = $('#q').value.trim();
-  if (!q) return;
-  $('#q').blur();
-  results.hidden = false;
-  results.innerHTML = '<div class="res-msg">Zoeken…</div>';
-  try {
-    const u = new URL('https://nominatim.openstreetmap.org/search');
-    u.search = new URLSearchParams({ format: 'jsonv2', q, limit: '6', 'accept-language': 'nl', viewbox: '-31,72,45,27', bounded: '1' });
-    const r = await fetch(u);
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const list = await r.json();
-    if (!list.length) { results.innerHTML = '<div class="res-msg">Niets gevonden in Europa</div>'; return; }
-    results.innerHTML = list.map((it, i) => {
-      const [first, ...rest] = String(it.display_name).split(', ');
-      return `<button type="button" data-i="${i}"><b>${esc(first)}</b><small>${esc(rest.join(', '))}</small></button>`;
-    }).join('');
-    results.onclick = ev => {
-      const it = list[ev.target.closest('[data-i]')?.dataset.i];
-      if (!it) return;
-      results.hidden = true;
-      const bb = (it.boundingbox || []).map(Number);
-      if (bb.length === 4 && bb.every(Number.isFinite)) map.fitBounds([[bb[0], bb[2]], [bb[1], bb[3]]], { maxZoom: 13 });
-      else map.setView([+it.lat, +it.lon], 12);
-    };
-  } catch {
-    results.innerHTML = '<div class="res-msg">Zoeken lukt nu niet. Controleer je internetverbinding.</div>';
-  }
-});
-$('#q').addEventListener('input', () => { if (!$('#q').value) results.hidden = true; });
-
 // ---------- Start ----------
+initSearch();
 initTrips();
 initPlaces();
 initTracker();

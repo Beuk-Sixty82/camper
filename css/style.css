@@ -123,11 +123,17 @@ path.track.leaflet-interactive { cursor: pointer; }
   position: absolute; left: 12px; right: 12px; top: calc(var(--sat) + 64px); z-index: 2;
   border-radius: 14px; overflow: hidden; max-height: 50vh; overflow-y: auto;
 }
-.results button { display: block; width: 100%; text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); }
-.results button:last-child { border-bottom: 0; }
-.results button b { display: block; font-weight: 600; }
-.results button small { color: var(--muted); font-size: 13px; }
-.res-msg { padding: 14px; color: var(--muted); }
+.results button { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 14px; border-top: 1px solid var(--line); }
+.results > button:first-child, .res-h + button { border-top: 0; }
+.res-t { flex: 1; min-width: 0; }
+.res-t b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.res-t small { display: block; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.res-ic { width: 30px; height: 30px; flex: none; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; color: var(--muted); }
+.res-ic svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; }
+.res-h { padding: 10px 14px 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-top: 1px solid var(--line); }
+.res-h:first-child { border-top: 0; }
+.res-msg { display: flex; align-items: center; gap: 10px; padding: 14px; color: var(--muted); border-top: 1px solid var(--line); }
+.res-msg:first-child { border-top: 0; }
 .chips {
   display: flex; gap: 8px; margin: 10px -12px 0; padding: 0 12px 6px;
   overflow-x: auto; scrollbar-width: none;
