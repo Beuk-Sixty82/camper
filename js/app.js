@@ -5,6 +5,16 @@ import { initTrips } from './trips.js';
 import { setTab, closeSheet, currentTab } from './ui.js';
 import { $, $$, esc } from './util.js';
 
+// ---------- Startscherm ----------
+const splash = $('#splash');
+function hideSplash() {
+  if (!splash || splash.classList.contains('out')) return;
+  splash.classList.add('out');
+  setTimeout(() => splash.remove(), 500);
+}
+splash?.addEventListener('click', hideSplash);
+setTimeout(hideSplash, 1800);
+
 // ---------- Tabs ----------
 $$('.tabs button').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
 

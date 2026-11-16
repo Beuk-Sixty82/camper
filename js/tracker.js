@@ -220,6 +220,7 @@ function build() {
   if (!T) {
     el.innerHTML = `
       <div class="hud-idle">
+        <div class="hud-photo"></div>
         <div><h2>Klaar voor vertrek</h2><p>Leg je route, afstand en rijtijd vast terwijl je rijdt.</p></div>
         <button type="button" class="btn primary big" data-act="start"><i class="rec-dot"></i>Start rit</button>
       </div>`;

@@ -1,5 +1,5 @@
 // Service worker: maakt de app offline bruikbaar en bewaart bekeken kaarttegels en plekken.
-const SHELL = 'camper-shell-v3';
+const SHELL = 'camper-shell-v4';
 const DATA = 'camper-data-v1';
 const TILES = 'camper-tiles-v1';
 const FILES = [
@@ -8,6 +8,7 @@ const FILES = [
   'js/app.js', 'js/db.js', 'js/map.js', 'js/osm.js', 'js/places.js', 'js/tracker.js', 'js/trips.js', 'js/ui.js', 'js/util.js',
   'vendor/leaflet.js', 'vendor/leaflet.css', 'vendor/leaflet.markercluster.js', 'vendor/MarkerCluster.css',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
+  'img/camper.jpg',
 ];
 
 self.addEventListener('install', e => {

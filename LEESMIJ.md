@@ -26,13 +26,12 @@ Je kunt ritten exporteren als GPX en een back-up maken/terugzetten.
 
 ## Op je iPhone zetten
 
-De app moet via **https** online staan; daarna:
-1. Open het adres in **Safari** op je iPhone.
+De app staat online op **https://beuk-sixty82.github.io/camper/** (GitHub Pages, repository `Beuk-Sixty82/camper`).
+1. Open dat adres in **Safari** op je iPhone.
 2. Tik op **Deel** → **Zet op beginscherm**.
 3. Open de app vanaf het beginscherm en sta **locatie** toe.
 
-Eenvoudigste manier om hem online te zetten: [Netlify Drop](https://app.netlify.com/drop) – sleep de map `CamperApp` naar de pagina (gratis account nodig).
-GitHub Pages kan ook.
+Wijzigingen online zetten: `git add -A`, `git commit -m "..."`, `git push`. Na ongeveer een minuut staat de nieuwe versie online.
 
 ## Plekkenbestand bijwerken
 

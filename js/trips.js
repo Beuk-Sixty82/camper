@@ -41,7 +41,7 @@ export async function renderTrips() {
   const max = Math.max(...months.map(x => x.km), 1);
 
   el.innerHTML = `
-    <header class="p-head"><h1>Ritten</h1></header>
+    <header class="hero"><div><h1>Ritten</h1><p>${trips.length ? `${fmtKm(dist)} km onderweg` : 'Klaar voor de eerste rit'}</p></div></header>
     <div class="stat-grid four">
       <div><b>${fmtKm(dist)}</b><span>km gereden</span></div>
       <div><b>${trips.length}</b><span>${trips.length === 1 ? 'rit' : 'ritten'}</span></div>
