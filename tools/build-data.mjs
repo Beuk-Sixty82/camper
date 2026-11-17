@@ -12,14 +12,17 @@ import { ql, toPlace, pack, tileKey, ORIGIN, TILE } from '../js/osm.js';
 
 const DATA = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
 const INDEX = path.join(DATA, 'index.json');
-const UA = 'CamperApp-data-build/1.1';
+const UA = 'CamperApp-data-build/1.2';
 const ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
 const CELL = 5;           // regio's in index.cells (= 2 × 2 tegels)
-const MAX_TRIES = 8;      // per tegel, bij drukke servers
+const MAX_TRIES = 8;      // per tegel, bij echte fouten (niet bij drukke/onbereikbare servers)
 const MAX_SPLIT = 3;      // 2,5° → 1,25° → 0,625° → 0,3125°
+const MAX_WAIT = 15 * 60000;                    // langste pauze als een server onbereikbaar is
+const DEADLINE = Date.now() + 20 * 3600000;     // na 20 uur stoppen met wat er is
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Europa: 34°–74° N, 25° W – 45° O, plus de Canarische Eilanden en Madeira.
@@ -39,7 +42,16 @@ const saveIndex = () => (writing = writing.then(() => writeFile(INDEX, JSON.stri
 const cellKey = c => `${c.lat}_${c.lon}`;
 const tilesOf = c => [[0, 0], [0, TILE], [TILE, 0], [TILE, TILE]].map(([a, b]) => ({ lat: c.lat + a, lon: c.lon + b, cell: c }));
 
-class TooBig extends Error {}
+class TooBig extends Error {}   // verzoek te zwaar: in kleinere stukken ophalen
+class Busy extends Error {}     // server onbereikbaar of overbelast: wachten, niet als poging tellen
+
+/** Reageert de server op een simpele statusvraag? */
+async function healthy(endpoint) {
+  try {
+    const r = await fetch(endpoint.replace(/interpreter$/, 'status'), { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(15000) });
+    return r.ok;
+  } catch { return false; }
+}
 
 async function fetchBox(endpoint, s, w, n, e) {
   const body = new URLSearchParams({ data: ql(s, w, n, e, 120) });
@@ -47,10 +59,11 @@ async function fetchBox(endpoint, s, w, n, e) {
   try {
     r = await fetch(endpoint, { method: 'POST', headers: { 'User-Agent': UA }, body, signal: AbortSignal.timeout(150000) });
   } catch (err) {
-    if (err.name === 'TimeoutError') throw new TooBig('time-out');
-    throw err;
+    if (err.name === 'TimeoutError' && await healthy(endpoint)) throw new TooBig('time-out');
+    throw new Busy(err.name === 'TimeoutError' ? 'geen antwoord' : 'onbereikbaar');
   }
-  if (r.status === 504) throw new TooBig('HTTP 504');
+  if (r.status === 429 || r.status === 502 || r.status === 503) throw new Busy('HTTP ' + r.status);
+  if (r.status === 504) throw (await healthy(endpoint)) ? new TooBig('HTTP 504') : new Busy('HTTP 504');
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
   if (j.remark && /timed out|out of memory/i.test(j.remark)) throw new TooBig(j.remark.slice(0, 60));
@@ -99,19 +112,30 @@ const total = queue.length, failed = [];
 let done = 0, places = 0;
 console.log(`${total} tegels op te halen (origin ${ORIGIN.lat}/${ORIGIN.lon})`);
 
+const stamp = () => new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+
 async function worker(endpoint) {
   const host = new URL(endpoint).hostname;
+  let busy = 0;
   for (;;) {
+    if (Date.now() > DEADLINE) return;
     const t = queue.shift();
     if (!t) return;
     const label = `${t.lat}..${t.lat + TILE}N ${t.lon}..${t.lon + TILE}E`;
     const t0 = Date.now();
     try {
       const n = await storeTile(t, await fetchArea(endpoint, t.lat, t.lon, TILE));
-      done++; places += n;
+      done++; places += n; busy = 0;
       console.log(`[${done}/${total}] ${label}: ${n} plekken (${Math.round((Date.now() - t0) / 1000)} s, ${host})`);
       await sleep(1500);
     } catch (e) {
+      if (e instanceof Busy) {
+        queue.unshift(t);                                   // tegel terug vooraan; geen poging verbruikt
+        const wait = Math.min(MAX_WAIT, 30000 * 2 ** busy++);
+        console.log(`  ${stamp()} ${host} ${e.message}; wacht ${Math.round(wait / 60000) || 1} min`);
+        await sleep(wait);
+        continue;
+      }
       t.tries++;
       console.log(`  mislukt ${label} via ${host}: ${e.message} (poging ${t.tries})`);
       if (t.tries < MAX_TRIES) queue.push(t); else failed.push(label);
@@ -126,3 +150,4 @@ const all = Object.values(index.tiles).reduce((s, n) => s + n, 0);
 const missing = cells.filter(c => !index.cells[cellKey(c)]).length;
 console.log(`Klaar: ${places} plekken opgehaald, ${all} in totaal. Regio's compleet: ${cells.length - missing} van ${cells.length}.`);
 if (failed.length) console.log(`Niet gelukt (start het script later nog eens): ${failed.join('; ')}`);
+if (queue.length) console.log(`Gestopt na 20 uur; nog ${queue.length} tegels over (start het script later nog eens).`);
