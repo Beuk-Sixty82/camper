@@ -1,9 +1,10 @@
 // Bouwt het plekkenbestand voor heel Europa op uit OpenStreetMap (Overpass API).
 //
-//   node tools/build-data.mjs            gaat verder waar de vorige keer is gestopt
+//   node tools/build-data.mjs            haalt alleen op wat nog ontbreekt (ook eerder mislukte gebieden)
 //   node tools/build-data.mjs --fresh    haalt alles opnieuw op (bijv. eens per paar maanden)
 //
 // Resultaat: data/index.json + data/t_<x>_<y>.json (tegels van 2,5° × 2,5°).
+// Per tegel één verzoek; loopt dat in een time-out (drukke gebieden), dan wordt de tegel in kleinere stukken opgehaald.
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,13 +12,14 @@ import { ql, toPlace, pack, tileKey, ORIGIN, TILE } from '../js/osm.js';
 
 const DATA = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
 const INDEX = path.join(DATA, 'index.json');
-const UA = 'CamperApp-data-build/1.0';
+const UA = 'CamperApp-data-build/1.1';
 const ENDPOINTS = [
-  'https://overpass.private.coffee/api/interpreter',
   'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
 ];
-const CELL = 5;           // graden per verzoek (= 2 × 2 tegels)
-const MAX_TRIES = 6;
+const CELL = 5;           // regio's in index.cells (= 2 × 2 tegels)
+const MAX_TRIES = 8;      // per tegel, bij drukke servers
+const MAX_SPLIT = 3;      // 2,5° → 1,25° → 0,625° → 0,3125°
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Europa: 34°–74° N, 25° W – 45° O, plus de Canarische Eilanden en Madeira.
@@ -34,59 +36,86 @@ await mkdir(DATA, { recursive: true });
 
 let writing = Promise.resolve();
 const saveIndex = () => (writing = writing.then(() => writeFile(INDEX, JSON.stringify(index))));
+const cellKey = c => `${c.lat}_${c.lon}`;
+const tilesOf = c => [[0, 0], [0, TILE], [TILE, 0], [TILE, TILE]].map(([a, b]) => ({ lat: c.lat + a, lon: c.lon + b, cell: c }));
 
-async function fetchCell(endpoint, c) {
-  const body = new URLSearchParams({ data: ql(c.lat, c.lon, c.lat + CELL, c.lon + CELL, 170) });
-  const r = await fetch(endpoint, { method: 'POST', headers: { 'User-Agent': UA }, body, signal: AbortSignal.timeout(220000) });
+class TooBig extends Error {}
+
+async function fetchBox(endpoint, s, w, n, e) {
+  const body = new URLSearchParams({ data: ql(s, w, n, e, 120) });
+  let r;
+  try {
+    r = await fetch(endpoint, { method: 'POST', headers: { 'User-Agent': UA }, body, signal: AbortSignal.timeout(150000) });
+  } catch (err) {
+    if (err.name === 'TimeoutError') throw new TooBig('time-out');
+    throw err;
+  }
+  if (r.status === 504) throw new TooBig('HTTP 504');
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
+  if (j.remark && /timed out|out of memory/i.test(j.remark)) throw new TooBig(j.remark.slice(0, 60));
+  if (j.remark && /error/i.test(j.remark)) throw new Error(j.remark.slice(0, 80));
   if (!Array.isArray(j.elements)) throw new Error('geen elementen');
-  if (j.remark && /error|timed out|out of memory/i.test(j.remark)) throw new Error(j.remark.slice(0, 80));
   return j.elements;
 }
 
-async function storeCell(c, elements) {
-  const buckets = new Map();
-  for (let lat = c.lat; lat < c.lat + CELL; lat += TILE) for (let lon = c.lon; lon < c.lon + CELL; lon += TILE) buckets.set(tileKey(lat + .01, lon + .01), []);
-  let n = 0;
-  for (const el of elements) {
-    const p = toPlace(el);
-    if (!p) continue;
-    const b = buckets.get(tileKey(p.lat, p.lon));
-    if (b) { b.push(pack(p)); n++; }
+/** Haalt een vierkant op; te zwaar? Dan in vier kleinere stukken. */
+async function fetchArea(endpoint, s, w, size, depth = 0) {
+  try {
+    return await fetchBox(endpoint, s, w, s + size, w + size);
+  } catch (e) {
+    if (!(e instanceof TooBig) || depth >= MAX_SPLIT) throw e;
+    const h = size / 2, out = [];
+    for (const [a, b] of [[0, 0], [0, h], [h, 0], [h, h]]) {
+      out.push(...await fetchArea(endpoint, s + a, w + b, h, depth + 1));
+      await sleep(1000);
+    }
+    return out;
   }
-  for (const [key, list] of buckets) {
-    index.tiles[key] = list.length;
-    if (list.length) await writeFile(path.join(DATA, `t_${key}.json`), JSON.stringify(list));
-  }
-  index.cells[`${c.lat}_${c.lon}`] = new Date().toISOString();
-  index.built = new Date().toISOString().slice(0, 10);
-  await saveIndex();
-  return n;
 }
 
-const queue = cells.filter(c => !index.cells[`${c.lat}_${c.lon}`]).map(c => ({ ...c, tries: 0 }));
+async function storeTile(t, elements) {
+  const key = tileKey(t.lat + .01, t.lon + .01), list = [], seen = new Set();
+  for (const el of elements) {
+    const p = toPlace(el);
+    if (!p || seen.has(p.id) || tileKey(p.lat, p.lon) !== key) continue;
+    seen.add(p.id);
+    list.push(pack(p));
+  }
+  if (list.length) await writeFile(path.join(DATA, `t_${key}.json`), JSON.stringify(list));
+  index.tiles[key] = list.length;
+  if (tilesOf(t.cell).every(x => tileKey(x.lat + .01, x.lon + .01) in index.tiles)) index.cells[cellKey(t.cell)] = new Date().toISOString();
+  index.built = new Date().toISOString().slice(0, 10);
+  await saveIndex();
+  return list.length;
+}
+
+const queue = [];
+for (const c of cells) {
+  if (index.cells[cellKey(c)]) continue;
+  for (const t of tilesOf(c)) if (!(tileKey(t.lat + .01, t.lon + .01) in index.tiles)) queue.push({ ...t, tries: 0 });
+}
 const total = queue.length, failed = [];
 let done = 0, places = 0;
-console.log(`${total} van ${cells.length} gebieden op te halen (origin ${ORIGIN.lat}/${ORIGIN.lon})`);
+console.log(`${total} tegels op te halen (origin ${ORIGIN.lat}/${ORIGIN.lon})`);
 
 async function worker(endpoint) {
   const host = new URL(endpoint).hostname;
   for (;;) {
-    const c = queue.shift();
-    if (!c) return;
-    const label = `${c.lat}..${c.lat + CELL}N ${c.lon}..${c.lon + CELL}E`;
+    const t = queue.shift();
+    if (!t) return;
+    const label = `${t.lat}..${t.lat + TILE}N ${t.lon}..${t.lon + TILE}E`;
     const t0 = Date.now();
     try {
-      const n = await storeCell(c, await fetchCell(endpoint, c));
+      const n = await storeTile(t, await fetchArea(endpoint, t.lat, t.lon, TILE));
       done++; places += n;
       console.log(`[${done}/${total}] ${label}: ${n} plekken (${Math.round((Date.now() - t0) / 1000)} s, ${host})`);
       await sleep(1500);
     } catch (e) {
-      c.tries++;
-      console.log(`  mislukt ${label} via ${host}: ${e.message} (poging ${c.tries})`);
-      if (c.tries < MAX_TRIES) queue.push(c); else failed.push(label);
-      await sleep(Math.min(60000, 8000 * c.tries));
+      t.tries++;
+      console.log(`  mislukt ${label} via ${host}: ${e.message} (poging ${t.tries})`);
+      if (t.tries < MAX_TRIES) queue.push(t); else failed.push(label);
+      await sleep(Math.min(90000, 10000 * t.tries));
     }
   }
 }
@@ -94,5 +123,6 @@ async function worker(endpoint) {
 await Promise.all(ENDPOINTS.map(worker));
 await writing;
 const all = Object.values(index.tiles).reduce((s, n) => s + n, 0);
-console.log(`Klaar: ${places} plekken opgehaald, ${all} in totaal in ${Object.values(index.tiles).filter(Boolean).length} tegels.`);
+const missing = cells.filter(c => !index.cells[cellKey(c)]).length;
+console.log(`Klaar: ${places} plekken opgehaald, ${all} in totaal. Regio's compleet: ${cells.length - missing} van ${cells.length}.`);
 if (failed.length) console.log(`Niet gelukt (start het script later nog eens): ${failed.join('; ')}`);
