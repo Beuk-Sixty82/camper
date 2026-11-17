@@ -179,7 +179,7 @@ path.track.leaflet-interactive { cursor: pointer; }
 .tabs {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 40;
   height: calc(var(--tab-h) + var(--sab)); padding-bottom: var(--sab);
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   background: var(--surface); border-top: 1px solid var(--line);
 }
 .tabs button {
@@ -202,8 +202,10 @@ body:not([data-tab="drive"]) .hud { display: none; }
 body:not([data-tab="trips"]) #panel-trips,
 body[data-mode="trip"] #panel-trips { display: none; }
 body:not([data-tab="saved"]) #panel-saved { display: none; }
+body:not([data-tab="settings"]) #panel-settings { display: none; }
 body[data-tab="trips"] .fabs,
-body[data-tab="saved"] .fabs { display: none; }
+body[data-tab="saved"] .fabs,
+body[data-tab="settings"] .fabs { display: none; }
 body[data-tab="drive"] .fabs { top: calc(var(--sat) + 12px); }
 
 /* ---------- Knoppen ---------- */
@@ -348,6 +350,28 @@ body[data-tab="drive"] .fabs { top: calc(var(--sat) + 12px); }
   height: 110px; margin: -16px -16px 0; border-radius: 20px 20px 0 0;
   background: #7fb0de url(../img/camper.jpg) 48% 44% / cover no-repeat;
 }
+
+/* ---------- Instellingen ---------- */
+.hint { font-size: 14px; color: var(--muted); margin: 0 4px 10px; }
+.box .hint { margin: 8px 0; }
+.row-btns { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.row-btns .count { flex: 1; font-size: 14px; font-weight: 600; padding-left: 4px; }
+.row-btns .btn { background: var(--surface); }
+.search.filter { height: 42px; margin-bottom: 10px; box-shadow: none; border: 1px solid var(--line); border-radius: 12px; }
+.switch-row { display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer; }
+.switch-row input { position: absolute; opacity: 0; pointer-events: none; }
+.flag { width: 30px; height: 22px; border-radius: 5px; background: var(--surface-2); color: var(--muted); font-size: 11px; font-weight: 800; display: grid; place-items: center; flex: none; letter-spacing: .03em; }
+.switch { position: relative; width: 46px; height: 28px; border-radius: 14px; background: var(--line); flex: none; transition: background .15s; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .15s; }
+.switch-row input:checked ~ .switch { background: var(--accent); }
+.switch-row input:checked ~ .switch::after { transform: translateX(18px); }
+.switch-row input:focus-visible ~ .switch { outline: 2px solid var(--accent); outline-offset: 2px; }
+.empty-row { padding: 14px; color: var(--muted); text-align: center; }
+.box { padding: 14px 16px; box-shadow: none; border-radius: 16px; font-size: 15px; }
+.box .btn.wide { margin-top: 4px; background: var(--accent); }
+.box .btn:disabled { opacity: .5; }
+.about p { font-size: 13px; color: var(--muted); }
+.about p + p { margin-top: 4px; }
 
 /* ---------- Meldingen ---------- */
 .toast {

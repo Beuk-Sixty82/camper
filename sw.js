@@ -1,11 +1,11 @@
 // Service worker: maakt de app offline bruikbaar en bewaart bekeken kaarttegels en plekken.
-const SHELL = 'camper-shell-v5';
+const SHELL = 'camper-shell-v6';
 const DATA = 'camper-data-v1';
 const TILES = 'camper-tiles-v1';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'css/style.css',
-  'js/app.js', 'js/db.js', 'js/map.js', 'js/osm.js', 'js/places.js', 'js/search.js', 'js/tracker.js', 'js/trips.js', 'js/ui.js', 'js/util.js',
+  'js/app.js', 'js/countries.js', 'js/db.js', 'js/map.js', 'js/osm.js', 'js/places.js', 'js/search.js', 'js/settings.js', 'js/tracker.js', 'js/trips.js', 'js/ui.js', 'js/util.js',
   'vendor/leaflet.js', 'vendor/leaflet.css', 'vendor/leaflet.markercluster.js', 'vendor/MarkerCluster.css',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
   'img/camper.jpg',

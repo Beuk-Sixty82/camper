@@ -65,11 +65,18 @@ export function toPlace(el) {
   return { id: el.type[0] + el.id, osm: `${el.type}/${el.id}`, cat, lat, lon, name: name || fallbackName(cat, tags), named: !!name, tags };
 }
 
-/** Compacte opslag in een tegelbestand: [id, categorie, lat, lon, naam, tags]. */
-export const pack = p => [p.id, CAT_LIST.indexOf(p.cat), +p.lat.toFixed(5), +p.lon.toFixed(5), p.named ? p.name : '', p.tags];
+/** Compacte opslag in een tegelbestand: [id, categorie, lat, lon, naam, tags, landcode]. */
+export const pack = p => [p.id, CAT_LIST.indexOf(p.cat), +p.lat.toFixed(5), +p.lon.toFixed(5), p.named ? p.name : '', p.tags, p.cc || ''];
 export function unpack(a) {
   const cat = CAT_LIST[a[1]], tags = a[5] || {};
-  return { id: a[0], osm: `${OSM_TYPE[a[0][0]]}/${a[0].slice(1)}`, cat, lat: a[2], lon: a[3], name: a[4] || fallbackName(cat, tags), tags };
+  return { id: a[0], osm: `${OSM_TYPE[a[0][0]]}/${a[0].slice(1)}`, cat, lat: a[2], lon: a[3], name: a[4] || fallbackName(cat, tags), tags, cc: a[6] || null };
+}
+
+/** [zuid, west, noord, oost] van een tegel. */
+export function tileBounds(key) {
+  const [x, y] = key.split('_').map(Number);
+  const s = ORIGIN.lat + y * TILE, w = ORIGIN.lon + x * TILE;
+  return [s, w, s + TILE, w + TILE];
 }
 
 export const tileKey = (lat, lon) => `${Math.floor((lon - ORIGIN.lon) / TILE)}_${Math.floor((lat - ORIGIN.lat) / TILE)}`;

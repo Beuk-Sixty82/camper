@@ -3,6 +3,7 @@ import { initPlaces } from './places.js';
 import { initTracker, trackerActive, recenter } from './tracker.js';
 import { initTrips } from './trips.js';
 import { initSearch } from './search.js';
+import { initSettings } from './settings.js';
 import { setTab, closeSheet, currentTab } from './ui.js';
 import { $, $$ } from './util.js';
 
@@ -32,6 +33,7 @@ $('#btn-locate').addEventListener('click', () => {
 
 // ---------- Start ----------
 initSearch();
+initSettings();
 initTrips();
 initPlaces();
 initTracker();

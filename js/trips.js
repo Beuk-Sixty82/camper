@@ -63,12 +63,7 @@ export async function renderTrips() {
           <span class="li-num"><b>${fmtKm(t.distance)} km</b><small>${fmtDur(t.movingTime)}</small></span>
         </button></li>`).join('')}</ul>`
     : `<div class="empty"><b>Nog geen ritten</b>Start een rit op het tabblad ‘Rit’. Na afloop zie je hier je route, afstand en rijtijd.</div>`}
-    <div class="backup">
-      <button type="button" class="btn small" id="bk-out">Back-up maken</button>
-      <button type="button" class="btn small" id="bk-in">Back-up terugzetten</button>
-    </div>
-    <p class="fine">Ritten staan alleen op dit toestel. Maak af en toe een back-up.</p>
-    <input type="file" id="bk-file" accept="application/json,.json" hidden>`;
+    <p class="fine">Ritten staan alleen op dit toestel. Een back-up maak je bij Instellingen.</p>`;
 }
 
 // ---------- Eén rit ----------
@@ -202,24 +197,8 @@ export function initTrips() {
   const el = $('#panel-trips');
   el.addEventListener('click', async e => {
     if (e.target.closest('#all-map')) return showAll();
-    if (e.target.closest('#bk-out')) {
-      const data = await db.exportAll();
-      return saveFile(`camper-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json', JSON.stringify(data));
-    }
-    if (e.target.closest('#bk-in')) return $('#bk-file').click();
     const id = e.target.closest('[data-id]')?.dataset.id;
     if (id) openTrip(+id);
-  });
-  el.addEventListener('change', async e => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const res = await db.importAll(JSON.parse(await file.text()));
-      toast(`${res.trips} ${res.trips === 1 ? 'rit' : 'ritten'} en ${res.places} ${res.places === 1 ? 'plek' : 'plekken'} teruggezet`);
-      renderTrips();
-    } catch {
-      toast('Dit bestand is geen geldige back-up');
-    }
   });
   onTab(name => { if (name === 'trips') renderTrips(); });
 }

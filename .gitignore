@@ -3,3 +3,4 @@ data-build.log
 data-build-fouten.log
 qr.html
 data-build-run.log
+tools/.cache/

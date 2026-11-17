@@ -17,6 +17,10 @@ Webapp voor de iPhone die je op je beginscherm zet en die dan werkt als een gewo
 Tik op een rit om de route op de kaart te zien. De rit krijgt automatisch een naam ("Dresden → Pirna").
 Je kunt ritten exporteren als GPX en een back-up maken/terugzetten.
 
+**Instellingen** – vink per land aan welke plekken je wilt zien (bijv. alleen de landen van je reis).
+Met *Download aangevinkte landen* zet je alle plekken van die landen op je telefoon voor gebruik zonder internet.
+Hier maak je ook een back-up van je ritten en bewaarde plekken.
+
 ## Belangrijk om te weten (iPhone)
 
 - **Houd de app open tijdens het rijden.** Een webapp mag van iOS geen GPS gebruiken als het scherm uit staat of je een andere app opent.
@@ -41,7 +45,10 @@ De plekken komen uit OpenStreetMap en staan in de map `data/`. Opnieuw ophalen (
 node tools/build-data.mjs --fresh
 ```
 
-Zonder `--fresh` gaat het script verder waar het gebleven was. Voortgang staat in `data-build.log`.
+Zonder `--fresh` gaat het script verder waar het gebleven was. Het script bepaalt per plek ook het land
+(landsgrenzen van Natural Earth, met telefoonnummer/website als hulp vlak bij een grens). Is het plekkenbestand
+met een oudere versie gemaakt, voeg de landen dan toe met `node tools/add-countries.mjs`.
+De landenlijst voor Instellingen maak je met `node tools/build-countries.mjs`. Voortgang staat in `data-build.log`.
 Voor gebieden die (nog) niet in het bestand staan, haalt de app plekken live op bij OpenStreetMap.
 
 ## Op de pc bekijken

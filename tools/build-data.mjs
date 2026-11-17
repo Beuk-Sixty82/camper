@@ -9,6 +9,9 @@ import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ql, toPlace, pack, tileKey, ORIGIN, TILE } from '../js/osm.js';
+import { loadCountries, makeLocator } from './countries-lib.mjs';
+
+const countryAt = makeLocator(await loadCountries());
 
 const DATA = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
 const INDEX = path.join(DATA, 'index.json');
@@ -88,15 +91,18 @@ async function fetchArea(endpoint, s, w, size, depth = 0) {
 }
 
 async function storeTile(t, elements) {
-  const key = tileKey(t.lat + .01, t.lon + .01), list = [], seen = new Set();
+  const key = tileKey(t.lat + .01, t.lon + .01), list = [], seen = new Set(), per = {};
   for (const el of elements) {
     const p = toPlace(el);
     if (!p || seen.has(p.id) || tileKey(p.lat, p.lon) !== key) continue;
     seen.add(p.id);
+    p.cc = countryAt(p.lat, p.lon, p.tags);
+    per[p.cc || '-'] = (per[p.cc || '-'] || 0) + 1;
     list.push(pack(p));
   }
   if (list.length) await writeFile(path.join(DATA, `t_${key}.json`), JSON.stringify(list));
   index.tiles[key] = list.length;
+  (index.tc ??= {})[key] = per;
   if (tilesOf(t.cell).every(x => tileKey(x.lat + .01, x.lon + .01) in index.tiles)) index.cells[cellKey(t.cell)] = new Date().toISOString();
   index.built = new Date().toISOString().slice(0, 10);
   await saveIndex();

@@ -3,7 +3,8 @@
 // OpenStreetMap met tools/build-data.mjs). Voor gebieden die daar niet in staan: live via de Overpass API.
 import { map, me, locate } from './map.js';
 import * as db from './db.js';
-import { ql, toPlace, unpack, tilesIn } from './osm.js';
+import { ql, toPlace, unpack, tilesIn, tileBounds } from './osm.js';
+import { loadCountries, isEnabled, enabledNear, filtering, onCountriesChange } from './countries.js';
 import { $, esc, h, haversine, fmtDist, safeUrl } from './util.js';
 import { openSheet, closeSheet, setTab, onTab, currentTab, toast } from './ui.js';
 
@@ -68,11 +69,50 @@ function setStatus(text, { spin = false, retry = null } = {}) {
   el.classList.toggle('tap', !!retry);
 }
 
+const visible = p => active.has(p.cat) && isEnabled(p.cc);
+
 function addPlaces(list) {
   if (places.size > 60000) { places.clear(); markers.clear(); cluster.clearLayers(); tiles.clear(); liveDone = []; }
   const fresh = [];
-  for (const p of list) if (p && !places.has(p.id)) { places.set(p.id, p); fresh.push(p); }
-  cluster.addLayers(fresh.filter(p => active.has(p.cat)).map(markerFor));
+  for (const p of list) {
+    if (!p || places.has(p.id)) continue;
+    places.set(p.id, p);
+    fresh.push(p);
+  }
+  cluster.addLayers(fresh.filter(visible).map(markerFor));
+}
+
+/** Bevat deze tegel plekken in een aangezet land? (zonder landinformatie: ligt hij bij een aangezet land?) */
+function tileOn(key) {
+  const tc = index?.tc?.[key];
+  if (!tc) return enabledNear(...tileBounds(key));
+  return !filtering() || Object.keys(tc).some(cc => cc !== '-' && isEnabled(cc));
+}
+
+/** Tegels met plekken in aangezette landen: [tegel, aantal plekken in die landen]. */
+export function enabledTiles() {
+  if (!index) return [];
+  const out = [];
+  for (const [k, n] of Object.entries(index.tiles)) {
+    if (!n) continue;
+    const tc = index.tc?.[k];
+    const cnt = tc
+      ? (tileOn(k) ? Object.entries(tc).reduce((s, [cc, c]) => s + (cc !== '-' && isEnabled(cc) ? c : 0), 0) : 0)
+      : (tileOn(k) ? n : 0);
+    if (cnt) out.push([k, cnt]);
+  }
+  return out;
+}
+export const dataDate = () => index?.built || null;
+
+/** Laadt tegels (en zo in de offline-opslag van de app); meldt voortgang. */
+export async function downloadTiles(keys, onProgress) {
+  let done = 0, failed = 0;
+  for (const k of keys) {
+    try { await loadTile(k); } catch { failed++; }
+    onProgress(++done, keys.length);
+  }
+  return failed;
 }
 
 // ---------- Uit het plekkenbestand ----------
@@ -156,8 +196,17 @@ async function load() {
   const keys = tilesIn(pad.getSouth(), pad.getWest(), pad.getNorth(), pad.getEast());
   const inView = tilesIn(view.getSouth(), view.getWest(), view.getNorth(), view.getEast());
 
-  const fromFile = index ? keys.filter(k => index.tiles[k] > 0) : [];
-  const needLive = !index || inView.some(k => !(k in index.tiles));
+  const known = index?.tiles || {};
+  const liveOn = k => !(k in known) && enabledNear(...tileBounds(k));
+  const withData = inView.filter(k => known[k] > 0);
+  const noneInView = !enabledNear(view.getSouth(), view.getWest(), view.getNorth(), view.getEast())
+    || (withData.length && !withData.some(tileOn) && !inView.some(liveOn));
+  if (filtering() && noneInView) {
+    setStatus('Geen aangevinkte landen in beeld · tik voor Instellingen', { retry: () => setTab('settings') });
+    return;
+  }
+  const fromFile = index ? keys.filter(k => known[k] > 0 && tileOn(k)) : [];
+  const needLive = !index || inView.some(liveOn);
   const pending = fromFile.filter(k => !tiles.has(k)).length || (needLive && !liveDone.some(b => b.contains(view)));
   if (pending) setStatus('Plekken laden…', { spin: true });
 
@@ -183,7 +232,7 @@ function markerFor(p) {
 
 function refilter() {
   cluster.clearLayers();
-  cluster.addLayers([...places.values()].filter(p => active.has(p.cat)).map(markerFor));
+  cluster.addLayers([...places.values()].filter(visible).map(markerFor));
 }
 
 function renderChips() {
@@ -363,7 +412,7 @@ export function findPlaces(q, limit = 5) {
   const c = map.getCenter(), ref = [c.lat, c.lng];
   const hits = [], seen = new Set();
   for (const p of [...favs.values(), ...places.values()]) {
-    if (seen.has(p.id)) continue;
+    if (seen.has(p.id) || (!favs.has(p.id) && !isEnabled(p.cc))) continue;
     if (norm(p.name).includes(s) || norm(p.tags?.['addr:city']).includes(s)) {
       seen.add(p.id);
       hits.push({ p, d: haversine(ref, [p.lat, p.lon]) - (favs.has(p.id) ? 1e7 : 0) });
@@ -452,8 +501,10 @@ export async function initPlaces() {
 
   map.on('moveend', () => { clearTimeout(timer); timer = setTimeout(load, 400); });
 
+  onCountriesChange(() => { refilter(); load(); });
+
   for (const p of await db.allPlaces()) favs.set(p.id, p);
   drawFavs();
-  await loadIndex();
+  await Promise.all([loadIndex(), loadCountries()]);
   load();
 }
